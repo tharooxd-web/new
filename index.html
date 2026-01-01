@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Album Kỷ Niệm & Pháo Hoa Chill</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap&subset=vietnamese" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #1a1a1a; 
+            font-family: sans-serif;
+            margin: 0;
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* CANVAS PHÁO HOA */
+        #fireworks-canvas {
+            position: fixed; 
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0; /* Nằm dưới cùng */
+            pointer-events: none; 
+        }
+
+        /* --- CÁC PHẦN DÂY VÀ ẢNH --- */
+        .string-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            height: 380px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-evenly;
+            padding-top: 70px;
+            z-index: 10;
+        }
+
+        .string-line {
+            position: absolute; top: 50px; left: 20px; right: 20px; height: 3px; background: #6d4c41;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10; border-radius: 50% / 10%;
+        }
+        .string-line::before, .string-line::after {
+            content: ''; position: absolute; top: -5px; width: 14px; height: 14px;
+            background: #4e342e; border-radius: 50%;
+        }
+        .string-line::before { left: -7px; } .string-line::after { right: -7px; }
+
+        /* ĐÈN LED */
+        .led-lights-container {
+            position: absolute; top: 48px; left: 25px; right: 25px; height: 10px; 
+            z-index: 15; pointer-events: none;
+        }
+        .led {
+            position: absolute; width: 6px; height: 6px; border-radius: 50%; background-color: #ffeb3b;
+            box-shadow: 0 0 8px 2px #ffeb3b, 0 0 20px 6px rgba(255, 235, 59, 0.6);
+            animation: twinkle 2s infinite ease-in-out alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.6; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 12px 3px #ffeb3b, 0 0 25px 8px rgba(255, 235, 59, 0.8); }
+        }
+        .led:nth-child(1) { left: 2%; animation-delay: 0.1s; } .led:nth-child(2) { left: 12%; animation-delay: 0.5s; top: 2px; }
+        .led:nth-child(3) { left: 22%; animation-delay: 0.2s; } .led:nth-child(4) { left: 33%; animation-delay: 0.7s; top: 1px; }
+        .led:nth-child(5) { left: 45%; animation-delay: 0.3s; } .led:nth-child(6) { left: 57%; animation-delay: 0.8s; top: 3px; }
+        .led:nth-child(7) { left: 68%; animation-delay: 0.4s; } .led:nth-child(8) { left: 79%; animation-delay: 0.6s; top: 2px; }
+        .led:nth-child(9) { left: 90%; animation-delay: 0.2s; }
+
+        /* KHUNG ẢNH POLAROID */
+        @keyframes swing { 0% { transform: rotate(2deg); } 100% { transform: rotate(-2deg); } }
+        
+        .photo-card {
+            background-color: #fff;
+            padding: 8px 8px 60px 8px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; width: 180px; height: auto;
+            z-index: 20; 
+            transform-origin: top center; animation: swing 3s ease-in-out infinite alternate;
+            cursor: pointer;
+        }
+        .photo-card:nth-child(odd) { animation-duration: 3.5s; }
+        .photo-card:nth-child(even) { animation-duration: 4s; animation-delay: -1s; }
+        .photo-card:nth-child(3n) { animation-duration: 3.2s; animation-delay: -0.5s; }
+        
+        .photo-card img { width: 100%; height: 160px; object-fit: cover; display: block; filter: sepia(20%) brightness(0.9); }
+        
+        .photo-card::before {
+            content: ''; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            width: 10px; height: 22px; background: #8d6e63; border-radius: 2px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.6); z-index: 3;
+        }
+        .photo-card:hover {
+            animation-play-state: paused; transform: scale(1.1) rotate(0deg) !important;
+            z-index: 50; box-shadow: 0 10px 30px rgba(255, 235, 59, 0.3); transition: all 0.3s ease;
+        }
+
+        /* CHỮ CHÚ THÍCH */
+        .caption {
+            position: absolute;
+            top: 145px; bottom: 0; left: 0; width: 100%;
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            font-family: 'Patrick Hand', cursive; 
+            font-size: 18px; color: #2c2c2c; line-height: 1.1;
+            padding: 0 5px; box-sizing: border-box;
+            opacity: 0; visibility: hidden;
+            transform: translateY(5px); transition: all 0.4s ease-out;
+            z-index: 5;
+        }
+        .photo-card.active .caption {
+            opacity: 1; visibility: visible; transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="fireworks-canvas"></canvas>
+
+    <div class="string-container">
+        <div class="string-line"></div>
+        <div class="led-lights-container">
+            <span class="led"></span><span class="led"></span><span class="led"></span>
+            <span class="led"></span><span class="led"></span><span class="led"></span>
+            <span class="led"></span><span class="led"></span><span class="led"></span>
+        </div>
+        
+        <div class="photo-card">
+            <img src="https://i.ibb.co/QjJcZz2k/anh1.png" alt="Ảnh 1">
+            <div class="caption">Happy new year Trang!!!</div>
+        </div>
+        <div class="photo-card">
+            <img src="https://i.ibb.co/kVgTb7tF/Screenshot-2026-01-01-110639.png" alt="Ảnh 2">
+             <div class="caption">Chúc Trang 1 năm mới luôn cười tươi</div>
+        </div>
+        <div class="photo-card">
+            <img src="https://i.ibb.co/5gcwQCz7/Screenshot-2026-01-01-110933.png" alt="Ảnh 3">
+            <div class="caption">
+    2026:<br>
+    Đánh nền không mốc<br>
+    Tán má không bết<br>
+    2light sáng bừng<br>
+    Kẻ mắt 3s<br>
+    Tóc luôn vào nếp
+        </div>
+        </div>
+        <div class="photo-card">
+            <img src="https://i.ibb.co/hFwDGFRm/Screenshot-2026-01-01-111146.png" alt="Ảnh 4">
+            <div class="caption">Đi được đến nơi muốn đến. 
+                            <br> Nơi mà có ánh nắng dành cho Trang.</div>
+        </div>
+    </div>
+
+    <div class="string-container">
+        <div class="string-line"></div>
+        <div class="led-lights-container">
+            <span class="led" style="left: 5%"></span><span class="led" style="left: 15%"></span>
+            <span class="led" style="left: 28%"></span><span class="led" style="left: 40%"></span>
+            <span class="led" style="left: 55%"></span><span class="led" style="left: 65%"></span>
+            <span class="led" style="left: 78%"></span><span class="led" style="left: 88%"></span>
+        </div>
+        
+        <div class="photo-card">
+            <img src="https://i.ibb.co/vxBMmmPr/Screenshot-2026-01-01-111231.png" alt="Ảnh 5">
+            <div class="caption">Yêu bản thân hơn<br> 
+                                 Học được những thứ thú vị mới<br>
+                                 Ăn những thứ Trang thích, uống những thứ Trang thèm</div>
+        </div>
+        <div class="photo-card">
+            <img src="https://i.ibb.co/twYNmGHW/Screenshot-2026-01-01-111352.png" alt="Ảnh 6">
+            <div class="caption">Chụp ảnh nào cũng xinh, cũng dịu<br>
+                                 Có nhiều tấm film ưng ý nhaa</div>
+        </div>
+        <div class="photo-card">
+            <img src="https://i.ibb.co/jvzMYgmm/Screenshot-2026-01-01-111502.png" alt="Ảnh 7">
+             <div class="caption">Dù là có ở đâu những người bạn luôn đồng hành cùng Trang sẽ tiếp tục hiện diện và bên cạnh Trang như bây giờ</div>
+        </div>
+    </div>
+
+    <script>
+        // --- CLICK HIỆN CHỮ ---
+        const photoCards = document.querySelectorAll('.photo-card');
+        photoCards.forEach(card => {
+            card.addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+        });
+
+        // --- PHÁO HOA CHẬM & DÀY HƠN ---
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const colors = ['#ffeb3b', '#ff5722', '#00bcd4', '#e91e63', '#4caf50', '#ffffff'];
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = Math.random() * Math.PI * 2;
+                
+                // GIẢM TỐC ĐỘ BAN ĐẦU (Chậm hơn)
+                this.velocity = Math.random() * 2 + 0.5; // (Cũ: * 3 + 1)
+                
+                this.vx = Math.cos(this.angle) * this.velocity;
+                this.vy = Math.sin(this.angle) * this.velocity;
+                this.life = 1;
+                
+                // GIẢM TỐC ĐỘ TAN BIẾN (Tồn tại lâu hơn)
+                this.decay = Math.random() * 0.01 + 0.005; 
+                
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.size = Math.random() * 2 + 1;
+                
+                // GIẢM TRỌNG LỰC (Rơi chậm hơn)
+                this.gravity = 0.035; // (Cũ: 0.05)
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.life -= this.decay;
+                this.size -= 0.03; // Thu nhỏ chậm hơn
+            }
+
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size > 0 ? this.size : 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function explode(x, y) {
+            // TĂNG SỐ LƯỢNG HẠT (Dày hơn)
+            for (let i = 0; i < 80; i++) { // (Cũ: 40)
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function loop() {
+            ctx.globalAlpha = 0.2; 
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0 || particles[i].size <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // TĂNG TẦN SUẤT BẮN NHẸ
+            if (Math.random() < 0.05) { 
+                let x;
+                if (Math.random() < 0.5) {
+                    x = Math.random() * (width * 0.25); // Trái
+                } else {
+                    x = Math.random() * (width * 0.25) + (width * 0.75); // Phải
+                }
+                let y = Math.random() * (height * 0.6); 
+                explode(x, y);
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+
+</body>
+</html>
